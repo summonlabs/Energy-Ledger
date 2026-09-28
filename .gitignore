@@ -1,0 +1,29 @@
+# Build trees
+/build/
+/build-*/
+/out/
+/install/
+/install-*/
+/_scratch/
+
+# Compiler and linker intermediates
+*.obj
+*.o
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.pdb
+*.ilk
+*.idb
+*.exp
+*.tmp
+*.log
+
+# Editor and IDE state
+.vs/
+.vscode/
+.idea/
+CMakeUserPresets.json

@@ -1,0 +1,11 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+if(NOT TARGET Summon::EnergyLedger)
+  include("${CMAKE_CURRENT_LIST_DIR}/EnergyLedgerTargets.cmake")
+endif()
+
+check_required_components(EnergyLedger)
+
+set(ENERGY_LEDGER_VERSION "@PROJECT_VERSION@")

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Summon Software Labs.
+//
+// Generated from version.hpp.in. Do not edit by hand.
+
+#ifndef ENERGY_LEDGER_VERSION_HPP
+#define ENERGY_LEDGER_VERSION_HPP
+
+namespace energy_ledger {
+
+inline constexpr int kVersionMajor = @PROJECT_VERSION_MAJOR@;
+inline constexpr int kVersionMinor = @PROJECT_VERSION_MINOR@;
+inline constexpr int kVersionPatch = @PROJECT_VERSION_PATCH@;
+inline constexpr const char* kVersionString = "@PROJECT_VERSION@";
+inline constexpr const char* kLibraryName = "Energy Ledger";
+inline constexpr const char* kStoreFormatName = "EnergyLedger.SegmentStore";
+
+/// Store format version implemented by this build.
+inline constexpr int kStoreFormatVersion = 1;
+
+}  // namespace energy_ledger
+
+#endif  // ENERGY_LEDGER_VERSION_HPP

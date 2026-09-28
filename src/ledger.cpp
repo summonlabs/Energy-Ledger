@@ -1492,22 +1492,28 @@ Expected<void> Ledger::close() {
   if (!impl.open) {
     return Expected<void>();
   }
+  Expected<void> outcome;
   if (impl.mode == AccessMode::ReadWrite && impl.lease_held && !impl.poisoned) {
+    // The rollback floor is raised to the committed generation before authority
+    // is released, so the next session can detect a rewound store.
     const std::uint64_t floor = std::max(impl.floor_generation, impl.manifest.generation);
     auto written = write_lease(impl, impl.writer_epoch, floor);
     if (!written) {
       impl.poisoned = true;
+      outcome = written.error();
     }
   }
   impl.open = false;
   impl.active_file.close();
   if (impl.lease_held) {
     auto released = release_lock(impl.lease_file);
-    (void)released;
+    if (!released && outcome.has_value()) {
+      outcome = released.error();
+    }
     impl.lease_held = false;
   }
   impl.lease_file.close();
-  return Expected<void>();
+  return outcome;
 }
 
 const char* to_string(FaultInjection::Stage stage) noexcept {

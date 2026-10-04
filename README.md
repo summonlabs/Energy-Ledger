@@ -410,7 +410,3 @@ report results if any of those checks fail.
 Apache License 2.0. See [LICENSE](LICENSE), [NOTICE](NOTICE) and
 [CONTRIBUTING.md](CONTRIBUTING.md). Energy Ledger does not collect or transmit
 telemetry.
-
-## License
-
-Apache License 2.0. Copyright 2026 Summon Software Labs. No telemetry transmission.

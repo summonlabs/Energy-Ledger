@@ -6,9 +6,6 @@ object over an interval, commits those assertions to an append-only
 integrity-chained sequence, and answers questions about totals, provenance,
 reconciliation and residual energy without ever rewriting history.
 
-Repository 24 of 72 in the Data Center Control Plane (DCCP) programme,
-Tranche 3 — Electrical Infrastructure Control.
-
 * Language: C++20, standard library only, no third-party dependencies.
 * Library, administration CLI, examples, benchmark, test suite and a versioned
   CMake package.

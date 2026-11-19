@@ -94,10 +94,11 @@ Expected<std::uint64_t> discard_orphan_segments(Ledger::Impl& impl, bool discard
     }
     ++orphans;
     if (discard) {
+      // An unreferenced segment is never read, so one that cannot be removed now
+      // (another tool still has it open) is left for a later open instead of
+      // refusing this one.
       auto removed = delete_file(join_path(impl.layout.segments_directory, name));
-      if (!removed) {
-        return removed.error();
-      }
+      (void)removed;
     }
   }
   return orphans;
@@ -1466,12 +1467,14 @@ Expected<CompactionResult> Ledger::compact(const CompactionOptions& options) {
   for (std::uint64_t index = 0; index < retire_count; ++index) {
     retired_ids.push_back(staged.previous_manifest.segments[static_cast<std::size_t>(index)].id);
   }
+  // The retirement is committed: no manifest generation references these files
+  // any more, and removing them is housekeeping. A file that cannot be removed
+  // now (another tool still has it open) is left behind as an unreferenced
+  // segment, which the next open discards. It must not fail a compaction that
+  // has already committed, or take the ledger out of service.
   for (std::uint64_t id : retired_ids) {
     auto removed = delete_file(impl.layout.segment_file(id));
-    if (!removed) {
-      impl.poisoned = true;
-      return removed.error();
-    }
+    (void)removed;
   }
 
   impl.records.erase(impl.records.begin(),

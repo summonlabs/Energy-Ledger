@@ -7,6 +7,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -883,4 +885,75 @@ EL_TEST(limits_are_enforced_before_allocation) {
   auto tiny = Ledger::create(eltest::fresh_store("limits-tiny"), CreateOptions{tiny_segment, false});
   EL_REQUIRE(!tiny.has_value());
   EL_CHECK_EQ(tiny.error().code, StatusCode::LimitExceeded);
+}
+
+EL_TEST(a_reader_of_a_retired_segment_does_not_take_the_ledger_out_of_service) {
+  const std::string path = eltest::fresh_store("retired-reader");
+  StoreLimits limits;
+  limits.max_segment_bytes = 4096;
+  EL_REQUIRE(build_store(path, 40, limits));
+
+  OpenOptions options;
+  options.mode = AccessMode::ReadWrite;
+  auto ledger = Ledger::open(path, options);
+  EL_REQUIRE(ledger.has_value());
+  auto before = ledger.value().audit();
+  EL_REQUIRE(before.has_value());
+  EL_REQUIRE(before.value().segments.size() >= 3);
+
+  // The oldest segment file: the first one a compaction retires.
+  std::string oldest;
+  std::error_code listing;
+  for (const auto& entry :
+       std::filesystem::directory_iterator(std::filesystem::path(path) / "SEGMENTS", listing)) {
+    const std::string name = entry.path().string();
+    if (oldest.empty() || name < oldest) {
+      oldest = name;
+    }
+  }
+  EL_REQUIRE(!oldest.empty());
+
+  // Another tool (a backup, an inspection, a scan) has the segment open, and
+  // keeps it open for the rest of the case.
+  std::ifstream reader(oldest, std::ios::binary);
+  EL_REQUIRE(reader.is_open());
+
+  // The retirement is committed; that the retired file cannot be removed while
+  // it is being read is not a failure of the compaction.
+  CompactionOptions compaction;
+  compaction.retain_from = SequenceNumber(21);
+  compaction.keep_segments = 1;
+  auto result = ledger.value().compact(compaction);
+  EL_CHECK(result.has_value());
+  if (result.has_value()) {
+    EL_CHECK(result.value().segments_retired >= 1);
+  }
+
+  // The ledger stays in service: it used to refuse every later append.
+  AppendRequest request;
+  request.content = eltest::sample_entry(EntryKind::Delivered, 900, "interval-after", "meter-1");
+  auto appended = ledger.value().append(request);
+  EL_CHECK(appended.has_value());
+  auto closed = ledger.value().close();
+  EL_CHECK(closed.has_value());
+
+  // And it opens again while the reader still holds the unreferenced file.
+  auto reopened = Ledger::open(path, options);
+  EL_CHECK(reopened.has_value());
+  if (reopened.has_value()) {
+    EL_CHECK_EQ(reopened.value().head_sequence().value(), std::uint64_t{41});
+    auto verified = reopened.value().verify();
+    EL_REQUIRE(verified.has_value());
+    EL_CHECK(verified.value().ok);
+    auto reclosed = reopened.value().close();
+    EL_CHECK(reclosed.has_value());
+  }
+  reader.close();
+
+  // With the reader gone, the next open discards the leftover file.
+  auto last = Ledger::open(path, options);
+  EL_REQUIRE(last.has_value());
+  EL_CHECK(!std::filesystem::exists(oldest));
+  auto last_closed = last.value().close();
+  EL_CHECK(last_closed.has_value());
 }
